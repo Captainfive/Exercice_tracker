@@ -1,23 +1,28 @@
+// Require third part dependencies
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const mongoose = require("mongoose");
-
 require("make-promises-safe");
 require("dotenv").config();
 
+// Connection to the database from the path specified in the .env file
 mongoose.connect(process.env.MLAB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
 
+// Creation of the User mongoose schema
 const schemaUser = new mongoose.Schema(
   {
     userName: String
   },
-  { autoIndex: false }
+  {
+    autoIndex: false
+  }
 );
+// Creation of the Exercise mongoose schema
 const exercise = new mongoose.Schema({
   userId: String,
   userName: String,
@@ -26,15 +31,17 @@ const exercise = new mongoose.Schema({
   date: Date
 });
 
+// Models creation
 const userModel = mongoose.model("userModel", schemaUser);
 const userExercise = mongoose.model("UserExercise", exercise);
 
+// Middlewares
 app.use(cors());
-
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
 app.use(express.static("public"));
+
+
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html");
 });
@@ -65,9 +72,10 @@ app.use((err, req, res, next) => {
     .send(errMessage);
 });
 
+// Create new user
 app.post("/api/exercise/new-user", (req, res) => {
   const { username } = req.body;
-  userModel.find({ userName: `${username}` }, function(err, query) {
+  userModel.find({ userName: `${username}` }, function (err, query) {
     if (err) {
       return err;
     }
@@ -75,7 +83,7 @@ app.post("/api/exercise/new-user", (req, res) => {
       res.status(400).res("username already taken");
     } else {
       const newUser = new userModel({ userName: `${username}` });
-      newUser.save(function(err) {
+      newUser.save(function (err) {
         if (err) {
           return err;
         }
@@ -83,9 +91,11 @@ app.post("/api/exercise/new-user", (req, res) => {
     }
   });
 });
-app.get("/api/exercise/users", async(req, res) => {
+
+// find some users
+app.get("/api/exercise/users", async (req, res) => {
   const arrOfUser = [];
-  await userModel.find({}, function(err, query) {
+  await userModel.find({}, function (err, query) {
     if (err) {
       return err;
     }
@@ -96,17 +106,12 @@ app.get("/api/exercise/users", async(req, res) => {
   });
   res.status(200).res(arrOfUser);
 });
-app.post("/api/exercise/add", async (req, res) => {
-  // userExercise.deleteMany({}, function (err) {
-  //     if (err) {
-  //         console.log(err);
 
-  //         return err;
-  //     }
-  // });
+// Add an exercice for a User
+app.post("/api/exercise/add", async (req, res) => {
   const { userId, description, duration } = req.body;
   let { date = null } = req.body;
-  await userModel.find({ _id: userId }, function(err, query) {
+  await userModel.find({ _id: userId }, function (err, query) {
     if (err) {
       console.log(err);
 
@@ -123,7 +128,7 @@ app.post("/api/exercise/add", async (req, res) => {
       duration,
       date
     });
-    newExo.save(function(err) {
+    newExo.save(function (err) {
       if (err) {
         console.log(err);
 
@@ -141,10 +146,12 @@ app.post("/api/exercise/add", async (req, res) => {
       });
   });
 });
+
+// Allows to recover different exercises performed by a user
 app.get("/api/exercise/log", async (req, res) => {
   const { userId, limit = null, from = null } = req.query;
   let { to = null } = req.query;
-  await userExercise.find({ userId }, function(err, query) {
+  await userExercise.find({ userId }, function (err, query) {
     if (err) {
       return err;
     }
@@ -152,6 +159,7 @@ app.get("/api/exercise/log", async (req, res) => {
       to = new Date(Date.now()).toDateString();
     }
 
+    // creation of a user Object
     const userObject = {};
     userObject._id = userId;
     userObject.username = query[0].userName;
@@ -163,7 +171,6 @@ app.get("/api/exercise/log", async (req, res) => {
     for (const exercise of query) {
       const { date } = exercise;
       date.toDateString();
-      console.log(date);
       if (
         Date.parse(exercise.date) >= Date.parse(from) &&
         Date.parse(exercise.date) <= Date.parse(to)
@@ -182,6 +189,7 @@ app.get("/api/exercise/log", async (req, res) => {
     res.status(200).json(userObject);
   });
 });
+
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log("Your app is listening on port " + listener.address().port);
 });
